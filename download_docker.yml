@@ -1,0 +1,54 @@
+- hosts: all
+  become: yes
+  tasks: 
+    - name: Check if docker is installed already
+      command: which docker 
+      register: docker_check
+      ignore_errors: yes
+    - name: Install repos
+      apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        state: present
+        update_cache: yes
+      when: docker_check.rc !=0        
+    - name: Create docker Keyrings
+      file:
+        path: /etc/apt/keyrings
+        state: directory 
+        mode: '0755'
+      when: docker_check.rc != 0 
+    - name: Add docker gpg Key
+      get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        mode: '0644'
+      when: docker_check.rc!=0
+    - name: Add docker apt repo
+      copy:
+        dest: /etc/apt/sources.list.d/docker.list
+        content: deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} stable
+      when: docker_check.rc != 0 
+    - name: Update apt update_cache
+      apt: 
+        update_cache: yes
+      when: docker_check.rc !=0
+    - name: Install docker packs
+      apt:
+        name:
+          - docker-ce 
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin 
+        state: present
+      when: docker_check.rc != 0
+    - name: Ensure Docker service is up and running
+      service:
+        name: docker 
+        state: started
+        enabled: yes
+      when: docker_check.rc != 0

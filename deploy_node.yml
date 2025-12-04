@@ -1,0 +1,37 @@
+- hosts: all
+  become: yes
+  tasks:
+    - name: check if pip is installed
+      command: which pip
+      register: pip_check
+      ignore_errors: yes
+    - name: install pip
+      apt: 
+        name: python3-pip
+        state: present
+        update_cache: yes
+      when: pip_check.rc != 0
+    - name: install python docker
+      pip: 
+        name: "docker"
+      
+    - name: Get info on container state
+      docker_container_info:
+        name: node_exporter
+      register: result
+    - name: Check container existance
+      debug:
+        msg: "The container {{'exists' if result.exists else 'does not exist'}}"
+    - name: make node_exporter directory
+      shell: mkdir /home/ubuntu/node_exporter
+      when: not result.exists
+    - name: copy compose yml
+      copy: 
+        src: /home/ubuntu/ansible_test/docker-compose.yml
+        dest: /home/ubuntu/node_exporter/docker-compose.yml
+      when: not result.exists
+    - name: docker compose up
+      shell: docker compose -f /home/ubuntu/node_exporter/docker-compose.yml up -d 
+      args:
+        chdir: /home/ubuntu/node_exporter
+      when: not result.exists
