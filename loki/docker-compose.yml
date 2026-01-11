@@ -1,0 +1,20 @@
+networks:
+    grafana_test_net:
+
+services:
+  loki:
+    image: grafana/loki
+    container_name: loki_test
+    ports:
+      - '3100:3100'
+    networks:
+      - grafana_test_net
+  promtail:
+    image: grafana/promtail
+    container_name: promtail_test
+    ports:
+      - '9081:9080'
+    volumes:
+      - '/var/log:/var/log'
+    networks:
+      - grafana_test_net

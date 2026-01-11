@@ -1,0 +1,38 @@
+- hosts: all
+  become: yes
+  tasks:
+    - name: check if pip is installed
+      command: which pip
+      register: pip_check
+      ignore_errors: yes
+    - name: print pip check val 
+      debug:
+        msg: pip_check.rc
+    - name: install pip
+      
+      apt: 
+        name: python3-pip
+        state: present
+        update_cache: yes
+      when: pip_check.rc!=0
+    - name: get info on loki container state 
+      docker_container_info:
+        name: loki_test
+      register: loki_status
+    - name: get info on promtail container state
+      docker_container_info:
+        name: promtail_test
+      register: promtail_status
+    - name: make loki directory
+      shell: mkdir /home/ubuntu/loki
+      when: not loki_status.exists
+    - name: copy compose .yml
+      copy:
+        src: /home/ubuntu/ansible_test/loki/docker-compose.yml
+        dest: /home/ubuntu/loki/docker-compose.yml
+      when: not loki_status.exists
+    - name: docker compose up
+      shell: docker compose -f /home/ubuntu/loki/docker-compose.yml up -d
+      when: not loki_status.exists
+
+#TODO: Add python update if version is not 3.9

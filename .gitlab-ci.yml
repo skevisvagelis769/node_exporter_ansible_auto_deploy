@@ -1,0 +1,45 @@
+stages: 
+  - build
+  - deploy 
+variables: 
+  ANSIBLE_HOST_KEY_CHECKING: "False"
+
+build_files:
+  stage: build
+  tags: 
+    - build
+  script: 
+    - echo "Getting files"
+  artifacts:
+    name: "playbook-${CI_COMMIT_SHORT_SHA}"
+    paths: 
+      - loki/
+      - ./deploy_loki.yml
+      - ./hosts.ini
+    expire_in: 1 hour
+
+deploy_playbook:
+  stage: deploy
+  tags: 
+    - ansible
+  image: alpine/ansible:latest
+  needs: 
+    - job: build_files
+      artifacts: true
+  before_script:
+   
+    - mkdir -p ~/.ssh
+    - cp "$SSH_KEY_MGR" ~/.ssh/mgr_id_rsa
+    - cp "$SSH_KEY_REVERSE" ~/.ssh/reverse_id_rsa
+    - cp "$SSH_KEY_SK" ~/.ssh/sk_id_rsa
+    - chmod 600 ~/.ssh/*
+    - ssh -i ~/.ssh/reverse_id_rsa -o StrictHostKeyChecking=no ubuntu@192.168.1.30 "echo connected"
+    - ssh -i ~/.ssh/mgr_id_rsa -o StrictHostKeyChecking=no ubuntu@192.168.1.32 "echo connected"
+  script:
+    - ansible --version 
+    - ansible-playbook deploy_loki.yml -i hosts.ini
+  environment: 
+    name: production 
+  only: 
+    - main
+#TODO: Redo the deploy_playbook logic, remove ssh and utilize artifacts
