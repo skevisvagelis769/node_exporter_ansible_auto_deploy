@@ -1,6 +1,19 @@
 - hosts: all
   become: yes
+  gather_facts: false
+  pre_tasks:
+    - name: Update python3 
+      raw: "apt-get update && apt-get install -y software-properties-common && add-apt-repository -y ppa:deadsnakes/ppa && apt-get install -y python3.9 "
+      changed_when: false
   tasks:
+
+    - name: set ansible interpreter to python3
+      set_fact:
+        ansible_python_interpreter: /usr/bin/python3.9
+  
+    - name: gather facts
+      setup: 
+
     - name: check if pip is installed
       command: which pip
       register: pip_check
@@ -9,12 +22,9 @@
       debug:
         msg: pip_check.rc
     - name: install pip
-      
-      apt: 
-        name: python3-pip
-        state: present
-        update_cache: yes
+      raw: "apt install python3-pip -y && apt get update -y"
       when: pip_check.rc!=0
+    
     - name: get info on loki container state 
       docker_container_info:
         name: loki_test
@@ -24,15 +34,14 @@
         name: promtail_test
       register: promtail_status
     - name: make loki directory
-      shell: mkdir /home/ubuntu/loki
+      shell: mkdir -p /home/ubuntu/loki
       when: not loki_status.exists
     - name: copy compose .yml
       copy:
-        src: /home/ubuntu/ansible_test/loki/docker-compose.yml
+        src: ./loki/docker-compose.yml
         dest: /home/ubuntu/loki/docker-compose.yml
       when: not loki_status.exists
     - name: docker compose up
       shell: docker compose -f /home/ubuntu/loki/docker-compose.yml up -d
       when: not loki_status.exists
 
-#TODO: Add python update if version is not 3.9

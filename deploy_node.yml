@@ -1,15 +1,25 @@
 - hosts: all
   become: yes
+  gather_facts: false
+  pre_tasks:
+    - name: Update python3 to v3.9
+      raw: "apt-get update && apt-get install -y software-properties-common && add-apt-repository -y ppa:deadsnakes/ppa && apt-get install -y python3.9"
+      changed_when: false
   tasks:
+
+    - name: set ansible interpreter to python3.9
+      set_fact:
+        ansible_python_interpreter: /usr/bin/python3.9
+    - name: gather facts
+      setup: 
+
     - name: check if pip is installed
       command: which pip
       register: pip_check
       ignore_errors: yes
     - name: install pip
-      apt: 
-        name: python3-pip
-        state: present
-        update_cache: yes
+      raw: "apt install python3-pip -y && apt get update -y"
+
       when: pip_check.rc != 0
     - name: install python docker
       pip: 
@@ -23,11 +33,11 @@
       debug:
         msg: "The container {{'exists' if result.exists else 'does not exist'}}"
     - name: make node_exporter directory
-      shell: mkdir /home/ubuntu/node_exporter
+      shell: mkdir -p /home/ubuntu/node_exporter
       when: not result.exists
     - name: copy compose yml
       copy: 
-        src: /home/ubuntu/ansible_test/docker-compose.yml
+        src: ./node_exporter/docker-compose.yml
         dest: /home/ubuntu/node_exporter/docker-compose.yml
       when: not result.exists
     - name: docker compose up
@@ -35,3 +45,4 @@
       args:
         chdir: /home/ubuntu/node_exporter
       when: not result.exists
+
